@@ -143,8 +143,10 @@ kuenm_ceval <- function(path, occ.joint, occ.tra, occ.test, batch, out.eval, thr
     pb <- winProgressBar(title = "Progress bar", min = 0, max = length(dir_names),
                          width = 300) #progress bar
   }
+  options(list(show.error.messages=FALSE,suppressWarnings=TRUE))
 
   for(i in 1:length(dir_names)) {
+
 
     if(.Platform$OS.type == "unix") {
       setTxtProgressBar(pb, i)
@@ -175,17 +177,18 @@ kuenm_ceval <- function(path, occ.joint, occ.tra, occ.test, batch, out.eval, thr
     aicc <- try(ENMeval::calc.aicc(nparam = par_num, occ = oc,
                                    predictive.maps = mod),silent = T)
     aicc_class <- class(aicc)
+    suppressWarnings(
+      while (aicc_class == "try-error") {
+        mod <- try(raster::raster(mods),silent = T)
+        mod_class <-class(mod)
+        aicc <- try(ENMeval::calc.aicc(nparam = par_num, occ = oc,
+                                       predictive.maps = mod),silent = T)
+        aicc_class <- class(aicc)
+        if(mod_class == "data.frame")
+          break()
 
-    while (aicc_class == "try-error") {
-      mod <- try(raster::raster(mods),silent = T)
-      mod_class <-class(mod)
-      aicc <- try(ENMeval::calc.aicc(nparam = par_num, occ = oc,
-                                     predictive.maps = mod),silent = T)
-      aicc_class <- class(aicc)
-      if(mod_class == "data.frame")
-        break()
-
-    }
+      }
+    )
     #Sys.sleep(2)
     aiccs[[i]] <- aicc
     #pROCs calculation
@@ -197,16 +200,20 @@ kuenm_ceval <- function(path, occ.joint, occ.tra, occ.test, batch, out.eval, thr
                            rand.percent = rand.percent, iterations = iterations),
                 silent = T)
     proc_class <- class(proc)
-    while (proc_class == "try-error") {
-      mods1 <- list.files(dir_names1[i], pattern = "*.asc$", full.names = TRUE) #name of ascii model
-      mod1 <- try(raster::raster(mods1), silent = T)
-      proc <- try(kuenm_proc(occ.test = occ1, model = mod1, threshold = threshold,
-                             rand.percent = rand.percent, iterations = iterations),
-                  silent = T)
-      proc_class <- class(proc)
-      if(proc_class == "list")
-        break()
-    }
+    suppressWarnings(
+      while (proc_class == "try-error") {
+        mods1 <- list.files(dir_names1[i], pattern = "*.asc$", full.names = TRUE) #name of ascii model
+        mod1 <- try(raster::raster(mods1), silent = T)
+        proc <- try(kuenm_proc(occ.test = occ1, model = mod1, threshold = threshold,
+                               rand.percent = rand.percent, iterations = iterations),
+                    silent = T)
+        proc_class <- class(proc)
+        if(proc_class == "list")
+          break()
+      }
+
+    )
+
 
     cat("\n Doing partial roc for model",i,"\n")
     proc_res[[i]] <- proc[[1]]
@@ -517,6 +524,7 @@ kuenm_ceval <- function(path, occ.joint, occ.tra, occ.test, batch, out.eval, thr
       cat("    and an aditional csv file containing the best models selected by OR.\n")
     }
   }
+  options(list(show.error.messages=FALSE,suppressWarnings=FALSE))
 
   cat(paste("\nCheck your working directory!!!", getwd(), sep = "    "))
   return(list_res)
