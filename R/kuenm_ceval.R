@@ -168,63 +168,47 @@ kuenm_ceval <- function(path, occ.joint, occ.tra, occ.test, batch, out.eval, thr
     lambdas <- readLines(lbds)
     par_num <- n.par(lambdas) #getting the number of parameters for each model
 
-    asc_files <- logical() # waiting for ascii files
-    asc_time <- 0
-    suppressWarnings(while (length(asc_files) == 0L && asc_time == 0L) {
-      asc_file <- list.files(dir_names[i], pattern = "*.asc$",
-                             full.names = TRUE)
-      asc_files <- file.exists(asc_file)
-      asc_info <- file.info(asc_file)
+    mods <- list.files(dir_names[i], pattern = "*.asc$", full.names = TRUE) #name of ascii model
 
-      if(!is.logical(asc_info)){
-        asc_time <- asc_info$atime - asc_info$mtime
+    mod <- try(raster::raster(mods),silent = T)
 
-      }
-    })
-    Sys.sleep(1)
-    mods <- list.files(dir_names[i], pattern = "asc", full.names = TRUE) #name of ascii model
+    aicc <- try(ENMeval::calc.aicc(nparam = par_num, occ = oc,
+                                   predictive.maps = mod),silent = T)
+    aicc_class <- class(aicc)
 
-    mod <- raster::raster(mods) #reading each ascii model created with the complete set of occurrences
+    while (aicc_class == "try-error") {
+      mod <- try(raster::raster(mods),silent = T)
+      mod_class <-class(mod)
+      aicc <- try(ENMeval::calc.aicc(nparam = par_num, occ = oc,
+                                     predictive.maps = mod),silent = T)
+      aicc_class <- class(aicc)
+      if(mod_class == "data.frame")
+        break()
 
-    aiccs[[i]] <- suppressWarnings(ENMeval::calc.aicc(nparam = par_num, occ = oc,
-                                                      predictive.maps = mod)) #calculating AICc for each model
-
+    }
+    #Sys.sleep(2)
+    aiccs[[i]] <- aicc
     #pROCs calculation
-    asc_files1 <- logical() # waiting for ascii files
-    asc_time1 <- 0
 
-    suppressWarnings(while (length(asc_files1) == 0L && asc_time1 == 0) {
-      asc_file1 <- list.files(dir_names1[i], pattern = "asc",
-                             full.names = TRUE)
-      asc_files1 <- file.exists(asc_file1)
-      if(asc_files1){
-        asc_info1 <- file.info(asc_file1)
-        asc_time1 <- asc_info1$mtime - asc_info1$ctime
-      }
-    })
+    mods1 <- list.files(dir_names1[i], pattern = "*.asc$", full.names = TRUE) #name of ascii model
+    cat("\n Doing model",i,"\n")
+    mod1 <- try(raster::raster(mods1),silent = T)
+    proc <- try(kuenm_proc(occ.test = occ1, model = mod1, threshold = threshold,
+                           rand.percent = rand.percent, iterations = iterations),
+                silent = T)
+    proc_class <- class(proc)
+    while (proc_class == "try-error") {
+      mods1 <- list.files(dir_names1[i], pattern = "*.asc$", full.names = TRUE) #name of ascii model
+      mod1 <- try(raster::raster(mods1), silent = T)
+      proc <- try(kuenm_proc(occ.test = occ1, model = mod1, threshold = threshold,
+                             rand.percent = rand.percent, iterations = iterations),
+                  silent = T)
+      proc_class <- class(proc)
+      if(proc_class == "list")
+        break()
+    }
 
-
-    suppressWarnings(while (length(asc_files1) == 0L && asc_time1==0) {
-      asc_file1 <- list.files(dir_names1[i], pattern = "*.asc$",
-                             full.names = TRUE)
-      asc_files1 <- file.exists(asc_file1)
-      asc_info1 <- file.info(asc_file1)
-
-      if(!is.logical(asc_info1) ){
-        asc_time1 <- asc_info1$atime - asc_info1$mtime
-
-      }
-    })
-
-    Sys.sleep(1)
-
-
-    mods1 <- list.files(dir_names1[i], pattern = "asc", full.names = TRUE) #ascii models
-
-    mod1 <- raster::raster(mods1) #reading each ascii model created with the calibration occurrences
-
-    proc <- kuenm_proc(occ.test = occ1, model = mod1, threshold = threshold,
-                       rand.percent = rand.percent, iterations = iterations) #Partial ROC analyses for each model
+    cat("\n Doing partial roc for model",i,"\n")
     proc_res[[i]] <- proc[[1]]
 
     #Omission rates calculation
@@ -236,6 +220,7 @@ kuenm_ceval <- function(path, occ.joint, occ.tra, occ.test, batch, out.eval, thr
       unlink(dir_names[i], recursive = T)
       unlink(dir_names1[i], recursive = T)
     }
+    cat("\nDone model",i,"\n")
 
   }
   if(.Platform$OS.type != "unix") {
