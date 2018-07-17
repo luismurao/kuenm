@@ -37,7 +37,7 @@ kuenm_proc <- function(occ.test, model, threshold = 5, rand.percent = 50,
   suppressMessages({
 
     # Calculate the number of cores
-    no_cores <- parallel::detectCores() - 1
+    no_cores <- parallel::detectCores()
 
     # Initiate cluster
     cl <- parallel::makeCluster(no_cores)
