@@ -162,7 +162,7 @@ kuenm_ceval <- function(path, occ.joint, occ.tra, occ.test, batch, out.eval, thr
 
       lambdas_files <- file.exists(as.vector(list.files(dir_names[i], pattern = ".lambdas",
                                                         full.names = TRUE)))
-      Sys.sleep(1)
+      #Sys.sleep(1)
     })
 
     lbds <- as.vector(list.files(dir_names[i], pattern = ".lambdas",
