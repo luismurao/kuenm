@@ -1,3 +1,4 @@
+
 #' Partial ROC calculation of single models
 #'
 #' @description kuenm_proc applies partial ROC tests to single models.
@@ -31,9 +32,29 @@
 #'                    rand.percent = rand_perc, iterations = iterac)
 
 kuenm_proc <- function(occ.test, model, threshold = 5, rand.percent = 50,
-                        iterations = 1000) {
+                       iterations = 1000) {
 
-  suppressMessages(library(dplyr))
+  suppressMessages({
+
+    # Calculate the number of cores
+    no_cores <- parallel::detectCores() - 1
+
+    # Initiate cluster
+    cl <- parallel::makeCluster(no_cores)
+    parallel::clusterEvalQ(cl,{
+
+      to_load <- system.file("helpers/proc_functions.R",package = "kuenm")
+      source(to_load)
+
+      library(dplyr)
+    })
+
+  }
+
+  )
+
+
+
 
   if(raster::cellStats(model,"min") == raster::cellStats(model,"max")) {
     warning("\nModel with no variability, pROC will return NA.\n")
@@ -60,7 +81,7 @@ kuenm_proc <- function(occ.test, model, threshold = 5, rand.percent = 50,
     ## As x-axis is not going to change.
     classpixels <- a_pred_pres(inrast)
 
-    occur <- occ.test
+    occur <- occ.test[,2:3]
     extrast <- raster::extract(inrast, occur)
 
     ## Remove all the occurrences in the class NA. As these points are not used in the calibration.
@@ -70,13 +91,28 @@ kuenm_proc <- function(occ.test, model, threshold = 5, rand.percent = 50,
     pointid <- seq(1:nrow(occurtbl))
     occurtbl <- cbind(pointid, occurtbl)
     names(occurtbl) <- c("PointID", "Longitude", "Latitude", "ClassID")
+    occurtbl <<-occurtbl
+    omissionval <<- omissionval
+    classpixels <<- classpixels
+    parallel::clusterExport(cl,"occurtbl")
+    parallel::clusterExport(cl,"rand.percent")
+    parallel::clusterExport(cl,"omissionval")
+    parallel::clusterExport(cl,"classpixels")
+
+
+
+
 
     ## Partial ROC iterations
-    output_auc <- parallel::mclapply(1:(iterations),
+    output_auc <- parallel::parLapply(cl = cl,1:(iterations),
                                      function(x) auc_comp(x, occurtbl,
                                                           rand.percent,
                                                           omissionval,
                                                           classpixels))
+
+    parallel::stopCluster(cl)
+
+
     auc_ratios <- data.frame(t(sapply(output_auc, c)))
 
 

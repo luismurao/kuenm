@@ -160,7 +160,7 @@ kuenm_cal <- function(occ.joint, occ.tra, M.var.dir, batch, out.dir, reg.mult,
   out.dir <- gsub("/", dl, paste(getwd(), out.dir, sep = sl))
 
   #Getting ram to be used
-  ram <- paste("-mx", (round((get_free_ram()/1000)*0.5)), "m", sep = "")
+  ram <- paste("-mx", (round((get_free_ram()/1000)*0.05)), "m", sep = "")
 
   #Fixed commands
   ##Intitial command
