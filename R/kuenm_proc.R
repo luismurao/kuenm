@@ -94,6 +94,7 @@ kuenm_proc <- function(occ.test, model, threshold = 5, rand.percent = 50,
     occurtbl <<-occurtbl
     omissionval <<- omissionval
     classpixels <<- classpixels
+    rand.percent <<- rand.percent
     parallel::clusterExport(cl,"occurtbl")
     parallel::clusterExport(cl,"rand.percent")
     parallel::clusterExport(cl,"omissionval")
