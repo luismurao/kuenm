@@ -127,7 +127,7 @@ kuenm_ceval <- function(path, occ.joint, occ.tra, occ.test, batch, out.eval, thr
   occ <- occ[, -1] #erase species name column
 
   occ1 <- read.csv(occ.test) #read test occurrences
-  occ1 <- occ1[, -1] #erase species name column
+  #occ1 <- occ1[, -1] #erase species name column
 
   #####
   #pROCs, omission rates, and AICcs calculation
@@ -220,7 +220,7 @@ kuenm_ceval <- function(path, occ.joint, occ.tra, occ.test, batch, out.eval, thr
 
     #Omission rates calculation
     om_rates[i] <- kuenm_omrat(model = mod1, threshold = threshold,
-                               occ.tra = occ, occ.test = occ1)
+                               occ.tra = occ, occ.test = occ1[,-1])
 
     #Erasing calibration models after evaluating them if kept = FALSE
     if(kept == FALSE) {
