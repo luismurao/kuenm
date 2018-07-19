@@ -8,6 +8,7 @@
 #' @param G.stack a RasterStack of variables representing the full area of interest, and areas
 #' or scenarios to which models are transferred.
 #' @param percent (numeric) percent of values sampled from te calibration region to calculate the MOP.
+#' @param comp_each (numeric) compute distance matrix for a each fixed number of rows (default 1000).
 #' @param normalized (logical) if true values of similarity are presented from 0 to 1,
 #' default = TRUE.
 #'
@@ -26,7 +27,8 @@
 #' mop <- kuenm_mop(M.stack = mvars, G.stack = gvars,
 #'                   percent = perc, normalized = norm)
 
-kuenm_mop <- function(M.stack, G.stack, percent = 10, normalized = TRUE) {
+kuenm_mop <- function(M.stack, G.stack, percent = 10,
+                      comp_each=1000,normalized = TRUE) {
   mPoints <- raster::rasterToPoints(M.stack)
   gPoints <- raster::rasterToPoints(G.stack)
 
@@ -37,26 +39,36 @@ kuenm_mop <- function(M.stack, G.stack, percent = 10, normalized = TRUE) {
     stop("Stacks must have the same dimensions")
   }
 
-  steps <- seq(1, dim(m2)[1], 1000)
+  steps <- seq(1, dim(m2)[1], comp_each)
   kkk <- c(steps,  dim(m2)[1] + 1)
   out_index <- plot_out(m1, m2)
   long_k <- length(kkk)
+  suppressPackageStartupMessages(library("doParallel"))
+
+  cores <- parallel::detectCores()
+  cl <- parallel::makeCluster(cores)
+  doParallel::registerDoParallel(cl)
 
   mop1 <- lapply(1:(length(kkk) - 1), function(x) {
     seq_rdist <- kkk[x]:(kkk[x + 1] - 1)
     eudist <- fields::rdist(m2[seq_rdist, ], m1)
-    mean_quantile <- parallel::mclapply(1:dim(eudist)[1], function(y) {
-      di <- eudist[y, ]
-      qdi <- quantile(di, probs = percent / 100, na.rm = TRUE)
-      ii <-  which(di <= qdi)
-      return(mean(di[ii]))
-    })
+    percent <- percent
+    mean_quantile <- foreach::foreach(y = 1:dim(eudist)[1],
+                                      .packages = c("kuenm")) %dopar% {
+                                        mop_dist(eudist_matrix = eudist,
+                                                 irow=y,
+                                                 percent = percent)
 
+                                      }
     avance <- (x / long_k) * 100
     cat("Computation progress: ", avance,"%" ,"\n")
 
     return(unlist(mean_quantile))
   })
+
+  parallel::stopCluster(cl)
+
+
 
   mop2 <- unlist(mop1)
   mop_all <- data.frame(gPoints[, 1:2], mop2)
