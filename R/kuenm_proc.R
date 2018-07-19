@@ -34,28 +34,6 @@
 kuenm_proc <- function(occ.test, model, threshold = 5, rand.percent = 50,
                        iterations = 1000) {
 
-  suppressMessages({
-
-    # Calculate the number of cores
-    no_cores <- parallel::detectCores()
-
-    # Initiate cluster
-    cl <- parallel::makeCluster(no_cores)
-    parallel::clusterEvalQ(cl,{
-
-      to_load <- system.file("helpers/proc_functions.R",package = "kuenm")
-      source(to_load)
-
-      library(dplyr)
-    })
-
-  }
-
-  )
-
-
-
-
   if(raster::cellStats(model,"min") == raster::cellStats(model,"max")) {
     warning("\nModel with no variability, pROC will return NA.\n")
 
@@ -91,26 +69,19 @@ kuenm_proc <- function(occ.test, model, threshold = 5, rand.percent = 50,
     pointid <- seq(1:nrow(occurtbl))
     occurtbl <- cbind(pointid, occurtbl)
     names(occurtbl) <- c("PointID", "Longitude", "Latitude", "ClassID")
-    occurtbl <<-occurtbl
-    omissionval <<- omissionval
-    classpixels <<- classpixels
-    rand.percent <<- rand.percent
-    parallel::clusterExport(cl,"occurtbl")
-    parallel::clusterExport(cl,"rand.percent")
-    parallel::clusterExport(cl,"omissionval")
-    parallel::clusterExport(cl,"classpixels")
+    cores <- detectCores()
+    cl <- makeCluster(cores)
+    doParallel::registerDoParallel(cl)
+    nCores <- getDoParWorkers()
 
-
-
-
-
-    ## Partial ROC iterations
-    output_auc <- parallel::parLapply(cl = cl,1:(iterations),
-                                     function(x) auc_comp(x, occurtbl,
-                                                          rand.percent,
-                                                          omissionval,
-                                                          classpixels))
-
+    output_auc <- foreach(x = 1:(iterations),
+                          .packages = c("kuenm","raster","dplyr")) %dopar%
+      {
+      auc_comp(x, occurtbl,
+               rand.percent,
+               omissionval,
+               classpixels)
+    }
     parallel::stopCluster(cl)
 
 
