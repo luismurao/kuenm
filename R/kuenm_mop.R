@@ -28,60 +28,80 @@
 #'                   percent = perc, normalized = norm)
 
 kuenm_mop <- function(M.stack, G.stack, percent = 10,
-                      comp_each=1000,normalized = TRUE) {
-  mPoints <- raster::rasterToPoints(M.stack)
-  gPoints <- raster::rasterToPoints(G.stack)
+                      comp_each=2000,normalized = TRUE) {
 
-  m1 <- mPoints[, -(1:2)]
-  m2 <- gPoints[, -(1:2)]
+
+  mPoints <- raster::rasterToPoints(M.stack)
+  m_nona <- na.omit(mPoints)
+  m_naID <- attr(m_nona,"na.action")
+  gPoints <- raster::rasterToPoints(G.stack)
+  g_nona <- na.omit(gPoints)
+  g_naID <- attr(g_nona,"na.action")
+
+  m1 <<- m_nona[, -(1:2)]
+  m2 <<- g_nona[, -(1:2)]
 
   if(dim(m1)[2] != dim(m2)[2]) {
     stop("Stacks must have the same dimensions")
   }
 
+  suppressPackageStartupMessages(library("future"))
+  future::plan(multiprocess)
+  mop_env <- new.env()
+
   steps <- seq(1, dim(m2)[1], comp_each)
   kkk <- c(steps,  dim(m2)[1] + 1)
-  out_index <- plot_out(m1, m2)
+  print(kkk)
+  out_index <- kuenm::plot_out(m1, m2)
   long_k <- length(kkk)
-  suppressPackageStartupMessages(library("doParallel"))
 
-  cores <- parallel::detectCores()
-  cl <- parallel::makeCluster(cores)
-  doParallel::registerDoParallel(cl)
+  pasos <- 1:(length(kkk) - 1)
+  pasosChar <- paste0(pasos)
 
-  mop1 <- lapply(1:(length(kkk) - 1), function(x) {
-    seq_rdist <- kkk[x]:(kkk[x + 1] - 1)
-    eudist <- fields::rdist(m2[seq_rdist, ], m1)
-    percent <- percent
-    mean_quantile <- foreach::foreach(y = 1:dim(eudist)[1],
-                                      .packages = c("kuenm")) %dopar% {
-                                        mop_dist(eudist_matrix = eudist,
-                                                 irow=y,
-                                                 percent = percent)
-
-                                      }
+  for (paso in pasosChar) {
+    x <- as.numeric(paso)
+    mop_env[[paso]] %<-% {
+      seq_rdist <- kkk[x]:(kkk[x + 1] - 1)
+      eudist <- fields::rdist(m2[seq_rdist, ], m1)
+      mop_dist <- lapply(1:dim(eudist)[1], function(y){
+        di <- eudist[y, ]
+        qdi <- quantile(di, probs = percent / 100,
+                        na.rm = TRUE)
+        ii <-  which(di <= qdi)
+        pond_mean <- mean(di,na.rm = TRUE)
+        return(pond_mean)
+      })
+      mop <-unlist(mop_dist)
+      return(mop)
+    }
     avance <- (x / long_k) * 100
     cat("Computation progress: ", avance,"%" ,"\n")
-
-    return(unlist(mean_quantile))
-  })
-
-  parallel::stopCluster(cl)
-
-
-
-  mop2 <- unlist(mop1)
-  mop_all <- data.frame(gPoints[, 1:2], mop2)
-  mop_max <- max(na.omit(mop2))
-  # What about using -1 instead of NA?
-  mop_all[out_index, 3] <- NA
-  sp::coordinates(mop_all) <- ~x + y
-  sp::gridded(mop_all) <- TRUE
-  mop_raster <- raster::raster(mop_all)
-
-  if(normalized) {
-    mop_raster <- 1 - (mop_raster / mop_max)
   }
 
+  mop_list <- as.list(mop_env)
+  mop_names <- sort(as.numeric(names(mop_list)))
+  mop_names <- as.character(mop_names)
+  mop_vals <- unlist(mop_list[mop_names])
+
+  if(!is.null(g_naID)){
+    mop_all <- data.frame(gPoints[,1:2])
+    mop_all$mop <- NA
+    mop_all$mop[-g_naID] <- mop_vals
+  }
+  else{
+    mop_all <- data.frame(gPoints[, 1:2], mop=mop_vals)
+  }
+
+  mop_max <- max(na.omit( mop_all$mop)) * 1.05
+  mop_all[out_index, 3] <- mop_max
+
+
+  sp::coordinates(mop_all) <- ~x + y
+  suppressWarnings({
+    sp::gridded(mop_all) <- TRUE
+  })
+
+  mop_raster <- raster::raster(mop_all)
+  mop_raster <- 1 - (mop_raster / mop_max)
   return(mop_raster)
 }

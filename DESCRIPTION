@@ -22,6 +22,7 @@ Imports:
     parallel (>= 3.4),
     foreach (>= 1.4.4),
     doParallel (>= 1.0.11),
+    future (>= 1.7.0),
     raster (>= 2.6),
     rgdal (>= 1.2),
     rmarkdown (>= 1.9),
