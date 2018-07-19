@@ -75,7 +75,7 @@ kuenm_proc <- function(occ.test, model, threshold = 5, rand.percent = 50,
     doParallel::registerDoParallel(cl)
     nCores <- foreach::getDoParWorkers()
 
-    output_auc <- foreach(x = 1:(iterations),
+    output_auc <- foreach::foreach(x = 1:(iterations),
                           .packages = c("kuenm","raster","dplyr")) %dopar%
 
       {
