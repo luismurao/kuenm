@@ -70,24 +70,14 @@ kuenm_proc <- function(occ.test, model, threshold = 5, rand.percent = 50,
     pointid <- seq(1:nrow(occurtbl))
     occurtbl <- cbind(pointid, occurtbl)
     names(occurtbl) <- c("PointID", "Longitude", "Latitude", "ClassID")
-<<<<<<< HEAD
     cores <- parallel::detectCores()
     cl <- parallel::makeCluster(cores)
     doParallel::registerDoParallel(cl)
     nCores <- foreach::getDoParWorkers()
 
-    output_auc <- foreach::foreach(x = 1:(iterations),
-                          .packages = c("kuenm","raster",
-                                        "dplyr","doParallel")) %dopar%
-=======
-    cores <- detectCores()
-    cl <- makeCluster(cores)
-    doParallel::registerDoParallel(cl)
-    nCores <- getDoParWorkers()
-
     output_auc <- foreach(x = 1:(iterations),
                           .packages = c("kuenm","raster","dplyr")) %dopar%
->>>>>>> origin/master
+
       {
       auc_comp(x, occurtbl,
                rand.percent,
