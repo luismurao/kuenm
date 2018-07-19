@@ -48,7 +48,7 @@ kuenm_proc <- function(occ.test, model, threshold = 5, rand.percent = 50,
 
     return(p_roc_res)
   }else {
-    suppressPackageStartupMessages(library(doParallel))
+    suppressPackageStartupMessages(library("doParallel"))
     omissionval <- (100 - threshold) / 100
 
     inrastlog <- model
