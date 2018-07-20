@@ -96,6 +96,11 @@ kuenm_mop <- function(M.stack, G.stack, percent = 10,
   mop_all[out_index, 3] <- mop_max
 
 
+  mop2 <- unlist(mop1)
+  mop_all <- data.frame(gPoints[, 1:2], mop2)
+  mop_max <- max(na.omit(mop2))
+  mop_max <- max(mop2)
+  mop_all[out_index, 3] <- mop_max*1.05
   sp::coordinates(mop_all) <- ~x + y
   suppressWarnings({
     sp::gridded(mop_all) <- TRUE
