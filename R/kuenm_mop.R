@@ -38,8 +38,8 @@ kuenm_mop <- function(M.stack, G.stack, percent = 10,
   g_nona <- na.omit(gPoints)
   g_naID <- attr(g_nona,"na.action")
 
-  m1 <<- m_nona[, -(1:2)]
-  m2 <<- g_nona[, -(1:2)]
+  m1 <- m_nona[, -(1:2)]
+  m2 <- g_nona[, -(1:2)]
 
   if(dim(m1)[2] != dim(m2)[2]) {
     stop("Stacks must have the same dimensions")
@@ -51,7 +51,7 @@ kuenm_mop <- function(M.stack, G.stack, percent = 10,
 
   steps <- seq(1, dim(m2)[1], comp_each)
   kkk <- c(steps,  dim(m2)[1] + 1)
-  print(kkk)
+
   out_index <- kuenm::plot_out(m1, m2)
   long_k <- length(kkk)
 
@@ -92,15 +92,8 @@ kuenm_mop <- function(M.stack, G.stack, percent = 10,
     mop_all <- data.frame(gPoints[, 1:2], mop=mop_vals)
   }
 
-  mop_max <- max(na.omit( mop_all$mop)) * 1.05
+  mop_max <- max(na.omit(mop_vals)) * 1.05
   mop_all[out_index, 3] <- mop_max
-
-
-  mop2 <- unlist(mop1)
-  mop_all <- data.frame(gPoints[, 1:2], mop2)
-  mop_max <- max(na.omit(mop2))
-  mop_max <- max(mop2)
-  mop_all[out_index, 3] <- mop_max*1.05
   sp::coordinates(mop_all) <- ~x + y
   suppressWarnings({
     sp::gridded(mop_all) <- TRUE
