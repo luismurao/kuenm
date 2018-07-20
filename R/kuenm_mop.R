@@ -46,7 +46,13 @@ kuenm_mop <- function(M.stack, G.stack, percent = 10,
   }
 
   suppressPackageStartupMessages(library("future"))
-  future::plan(multiprocess)
+  if(.Platform$OS.type != "unix"){
+    future::plan(multisession,gc=TRUE)
+  }
+  else{
+    future::plan(multiprocess)
+  }
+
   mop_env <- new.env()
 
   steps <- seq(1, dim(m2)[1], comp_each)
@@ -76,6 +82,11 @@ kuenm_mop <- function(M.stack, G.stack, percent = 10,
     }
     avance <- (x / long_k) * 100
     cat("Computation progress: ", avance,"%" ,"\n")
+  }
+
+  if(.Platform$OS.type != "unix"){
+    future:::ClusterRegistry("stop")
+
   }
 
   mop_list <- as.list(mop_env)
